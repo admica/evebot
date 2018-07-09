@@ -2,4 +2,5 @@
 Discord bot for fetching Eve statistics
 
 ## Features:
-Autonomously posts killmails with statistics to its own channel in real time.
+Fetch killmail statistics from zkillboard
+Autonomously posts killmails to its own channel in real time.
