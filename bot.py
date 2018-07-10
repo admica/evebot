@@ -5,9 +5,13 @@ import asyncio, discord, time, threading, websocket, json
 from discord.ext import commands
 from discord.ext.commands import Bot
 import aiohttp
+import re
 
 class Zbot:
     def __init__(self):
+        self.pause = False
+
+        self.regions = 'Aridia Black_Rise The_Bleak_Lands Branch Cache Catch The_Citadel Cloud_Ring Cobalt_Edge Curse Deklein Delve Derelik Detorid Devoid Domain Esoteria Essence Etherium_Reach Everyshore Fade Feythabolis The_Forge Fountain Geminate Genesis Great_Wildlands Heimatar Immensea Impass Insmother Kador The_Kalevala_Expanse Khanid Kor-Azor Lonetrek Malpais Metropolis Molden_Heath Oasa Omist Outer_Passage Outer_Ring Paragon_Soul Period_Basis Perrigen_Falls Placid Providence Pure_Blind Querious Scalding_Pass Sinq_Laison Solitude The_Spire Stain Syndicate Tash-Murkon Tenal Tenerifis Tribute Vale_of_the_Silent Venal Verge Vendor Wicked_Creek'.split(' ')
 
         self.corps = []
         with open('the.corps','r') as f:
@@ -16,9 +20,9 @@ class Zbot:
 
         self.ch = {}
         with open('the.channel','r') as f:
-            self.ch['main'] = f.readline().strip()
+            self.ch['main'] = f.readline().strip().split(":")[-1]
             try:
-                self.ch['verbose'] = f.readline().strip()
+                self.ch['debug'] = f.readline().strip().split(":")[-1]
             except:
                 pass
 
@@ -37,7 +41,6 @@ class Zbot:
     def start(self):
         self.thread = threading.Thread(target=self.bot_thread, args=(self.loop,self.Bot,self.ch['main'],self.admins,self.private_key))
         self.thread.daemon = True
-        self.thread.start()
 
     def bot_thread(self, loop, bot, channel, admins, private_key):
         asyncio.set_event_loop(loop)
@@ -52,7 +55,6 @@ class Zbot:
 
                 try:
                     await bot.send_message(bot.get_channel(channel), message)
-                    #print("Bot said: {}".format(message))
                 except:
                     pass
 
@@ -64,8 +66,116 @@ class Zbot:
             await bot.say(":ping_pong:")
 
         @bot.command(pass_context=True)
+        async def pause(ctx):
+            """Tell bot to stop posting killmails until it's asked to resume"""
+            self.pause = True
+            await bot.say(":pause_button: ***Automatic killmail posting paused.***")
+
+        @bot.command(pass_context=True)
+        async def resume(ctx):
+            """Tell bot to resume posting killmails"""
+            self.pause = False
+            await bot.say(":bacon: ***Automatic killmail posting resumed.***")
+
+        @bot.command(pass_context=True)
+        async def map(ctx):
+            """Fetch a link to dotlan for any region, example: #map forge"""
+            #http://evemaps.dotlan.net/map/Tribute/M-OEE8#jumps
+            url = 'http://evemaps.dotlan.net/map/'
+
+            try:
+                name = ctx.message.content
+                name = name.split()
+                if len(name) > 2:
+                    name = name[1:]
+                    name = '_'.join(name)
+                else:
+                    name = name[1]
+                print('Processing map request for {}'.format(name))
+
+                found = False
+                for region in self.regions:
+                    if name == region.lower():
+                        found = True
+                        print('Exact match found! {}'.format(name))
+                        break
+
+                if not found:
+                    print("No exact match found, checking nicknames.")
+                    found = True
+                    if name in ['bleak','lands','land']:
+                        name = 'the_bleak_lands'
+                    elif name == 'citadel':
+                        name = 'the_citadel'
+                    elif name in ['cloud','ring']:
+                        name = 'cloud_ring'
+                    elif name in ['cobalt','edge']:
+                        name = 'cobalt_edge'
+                    elif name in ['eth','ether','etherium','ethereum','reach']:
+                        name = 'etherium_reach'
+                    elif name in ['every','shore']:
+                        name = 'everyshore'
+                    elif name in ['fey','feyth','faith']:
+                        name = 'feythabolis'
+                    elif name == 'forge':
+                        name = 'the_forge'
+                    elif name in ['great','wildlands','wild','wildland']:
+                        name = 'great_wildlands'
+                    elif name in ['kal','kalev','kalevala','expanse']:
+                        name = 'the_kalevala_expanse'
+                    elif name == 'azor':
+                        name = 'kor-azor'
+                    elif name == 'trek':
+                        name = 'lonetrek'
+                    elif name == 'heath':
+                        name = 'molden_heath'
+                    elif name == 'passage':
+                        name = 'outer_passage'
+                    elif name == 'ring':
+                        name = 'outer_ring'
+                    elif name == 'soul':
+                        name = 'paragon_soul'
+                    elif name == 'basis':
+                        name = 'period_basis'
+                    elif name in ['falls','fall']:
+                        name = 'perrigen_falls'
+                    elif name == 'blind':
+                        name = 'pure_blind'
+                    elif name == 'pass':
+                        name = 'scalding_pass'
+                    elif name in ['laison','liason','sink']:
+                        name = 'sinq_laison'
+                    elif name in ['spire','spires']:
+                        name = 'the_spire'
+                    elif name in ['syn','sin']:
+                        name = 'syndicate'
+                    elif name in ['murkon','murk']:
+                        name = 'tash-murkon'
+                    elif name in ['vale','of','silent']:
+                        name = 'vale_of_the_silent'
+                    elif name == 'creek':
+                        name = 'wicked_creek'
+                    else:
+                        print("No nickname match found.")
+                        found = False
+                    if not found:
+                        for region in self.regions:
+                            print("checking {} = {}".format(name,region.lower()))
+                            if region.lower().startswith(name):
+                                name = region
+                                found = True
+                                break
+                if found:
+                    url = '<{}{}#jumps>'.format(url, name)
+                    print('Sending link: {}'.format(url))
+                    await bot.say(url)
+
+            except Exception as e:
+                print("Map failure: {}".format(e))
+
+        @bot.command(pass_context=True)
         async def price(ctx):
-            """cryptocurrency price check, example: price bitcoin, or price iota"""
+            """crypto price check, example: #price bitcoin, #price iota"""
             msg = ctx.message.content
             coin = msg.split()[1]
             url = 'https://api.coinmarketcap.com/v1/ticker/{}'.format(coin)
@@ -82,14 +192,15 @@ class Zbot:
                 print("Error in price command: {}".format(e))
                 await bot.say("Sorry, I don't know how to lookup {}".format(coin))
 
-        @bot.command(pass_context=True)
+        '''@bot.command(pass_context=True)
         async def friends(ctx):
             """Ask bot about his friends"""
             # ctx.command == 'friends'
             # ctx.invoked_with == 'friends'
-            channel = self.ch.get('verbose',None)
+            channel = self.ch.get('debug',None)
             if channel:
                 await ctx.bot.send_typing(bot.get_channel(channel))
+        '''
 
         @bot.command(pass_context=True)
         async def die(ctx):
@@ -113,7 +224,7 @@ class Zbot:
     def run(self, debug=False):
         """main loop runs forever"""
         if debug:
-            channel = self.ch['verbose']
+            channel = self.ch['debug']
         else:
             channel = self.ch['main']
 
@@ -154,12 +265,15 @@ class Zbot:
                                         post = True
 
                                 msg = '`{}` {}'.format(subj, url)
-                                if post:
-                                    print('Sending: {}'.format(msg))
-                                    send(channel, msg)
-                                    time.sleep(0.01)
+                                if not self.pause:
+                                    if post:
+                                        print('Sending: {}'.format(msg))
+                                        send(channel, msg)
+                                        time.sleep(0.01)
+                                    else:
+                                        print('{} is not interesting'.format(msg))
                                 else:
-                                    print('{} is not interesting'.format(msg))
+                                    print("Paused, ignoring {}".format(msg))
 
                             except Exception as e:
                                 print('Exception caught: {}'.format(e))
