@@ -1,4 +1,4 @@
-# eveobot
+# evebot
 Discord bot for Eve
 
 ![logo](https://github.com/admica/evebot/blob/master/images/logo.jpg)
