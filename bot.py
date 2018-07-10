@@ -1,141 +1,189 @@
 #!/usr/bin/python3
-#bot by admica
+#Discord eve bot by admica
 
 import asyncio, discord, time, threading, websocket, json
+from discord.ext import commands
+from discord.ext.commands import Bot
+import aiohttp
 
-corps = []
-f = open('the.corps','r')
-for line in f.readlines():
-    corps.append(line.strip().split(":")[-1])
+class Zbot:
+    def __init__(self):
 
-f = open('the.channel','r')
-channel = f.readline().strip()
+        self.corps = []
+        with open('the.corps','r') as f:
+            for line in f.readlines():
+                self.corps.append(line.strip().split(":")[-1])
 
-f = open('the.key','r')
-private_key = f.readline().strip()
-
-admins = []
-f = open('the.admins','r')
-for line in f.readlines():
-    admins.append(line.strip())
-
-loop = asyncio.new_event_loop()
-bot = discord.Client()
-bot_token = True
-message_queue = asyncio.Queue()
-
-def bot_thread(loop, bot, bot_token, message_queue, channel, admins):
-    asyncio.set_event_loop(loop)
-
-    @bot.event
-    async def on_ready():
-        while True:
-            data = await message_queue.get()
-            event = data[0]
-            message = data[1]
-            channel = data[2]
-
+        self.ch = {}
+        with open('the.channel','r') as f:
+            self.ch['main'] = f.readline().strip()
             try:
-                await bot.send_message(bot.get_channel(channel), message)
-                #print("Bot said: {}".format(message))
+                self.ch['verbose'] = f.readline().strip()
             except:
                 pass
 
-            event.set()
+        with open('the.key','r') as f:
+            self.private_key = f.readline().strip()
 
-    @bot.command(pass_context=True)
-    async def die(ctx):
-        """Tell bot to logoff. (requires persmission)"""
-        if str(ctx.message.author) in admins:
-            await bot.say("Shutting down...")
-            await bot.logout()
-            import sys
-            sys.exit(0)
+        self.admins = []
+        with open('the.admins','r') as f:
+            for line in f.readlines():
+                self.admins.append(line.strip())
+
+        self.loop = asyncio.new_event_loop()
+        self.Bot = commands.Bot(command_prefix='#')
+        self.q = asyncio.Queue()
+
+    def start(self):
+        self.thread = threading.Thread(target=self.bot_thread, args=(self.loop,self.Bot,self.ch['main'],self.admins,self.private_key))
+        self.thread.daemon = True
+        self.thread.start()
+
+    def bot_thread(self, loop, bot, channel, admins, private_key):
+        asyncio.set_event_loop(loop)
+
+        @bot.event
+        async def on_ready():
+            while True:
+                data = await self.q.get()
+                event = data[0]
+                message = data[1]
+                channel = data[2]
+
+                try:
+                    await bot.send_message(bot.get_channel(channel), message)
+                    #print("Bot said: {}".format(message))
+                except:
+                    pass
+
+                event.set()
+
+        @bot.command(pass_context=True)
+        async def ping(ctx):
+            """check to see if bot is alive"""
+            await bot.say(":ping_pong:")
+
+        @bot.command(pass_context=True)
+        async def price(ctx):
+            """cryptocurrency price check, example: price bitcoin, or price iota"""
+            msg = ctx.message.content
+            coin = msg.split()[1]
+            url = 'https://api.coinmarketcap.com/v1/ticker/{}'.format(coin)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    raw_response = await session.get(url)
+                    response = await raw_response.text()
+                    response = eval(response)[0]
+                    await bot.say("{} price: ${}".format(coin.upper(), response['price_usd']))
+                    await bot.say("{} % change last 1h:  {}%".format(coin.upper(), response['percent_change_1h']))
+                    await bot.say("{} % change last 24h: {}%".format(coin.upper(), response['percent_change_24h']))
+                    await bot.say("{} volume last 24h: ${}".format(coin.upper(), response['24h_volume_usd']))
+            except Exception as e:
+                print("Error in price command: {}".format(e))
+                await bot.say("Sorry, I don't know how to lookup {}".format(coin))
+
+        @bot.command(pass_context=True)
+        async def friends(ctx):
+            """Ask bot about his friends"""
+            # ctx.command == 'friends'
+            # ctx.invoked_with == 'friends'
+            channel = self.ch.get('verbose',None)
+            if channel:
+                await ctx.bot.send_typing(bot.get_channel(channel))
+
+        @bot.command(pass_context=True)
+        async def die(ctx):
+            """Tell bot to logoff. (requires persmission)"""
+            if str(ctx.message.author) in admins:
+                await bot.say("Shutting down...")
+                await bot.logout()
+                running = False
+                import sys
+                sys.exit(0)
+            else:
+                await bot.say("{} is not an admin, ignoring.".format(ctx.message.author))
+
+        bot.run(private_key)
+
+    def send(self, channel, message):
+        event = threading.Event()
+        self.q.put_nowait([event, message, channel])
+        event.wait()
+
+    def run(self, debug=False):
+        """main loop runs forever"""
+        if debug:
+            channel = self.ch['verbose']
         else:
-            await bot.say("{} is not an admin, ignoring.".format(ctx.message.author))
+            channel = self.ch['main']
 
-    bot.run(private_key, bot=bot_token)
+        while True:
+            try:
+                _url = 'wss://zkillboard.com:2096'
+                _msg = '{"action":"sub","channel":"killstream"}'
+                ws = websocket.create_connection(_url)
+                print('Connected to: {}'.format(_url))
+                ws.send(_msg)
+                print('Subscribed with: {}'.format(_msg))
 
-thread = threading.Thread(target=bot_thread, args=(loop,bot,bot_token,message_queue,channel,admins))
-thread.daemon = True
-thread.start()
+                running = True
+                while running:
+                    time.sleep(0.1)
+                    if self.Bot._is_ready.is_set(): # wait until the ready event
 
-def send(channel, message):
-    event = threading.Event()
-    message_queue.put_nowait([event, message, channel])
-    event.wait()
+                        while True:
+                            try:
+                                time.sleep(0.1)
+                                raw = ws.recv()
+                                d = json.loads(raw)
+                                url = d['zkb']['url']
 
+                                subj = '---'
+                                post = False
+                                for attacker in d['attackers']:
+                                    c = attacker.get('corporation_id','none')
+                                    if str(c) in self.corps:
+                                        subj = 'Win'
+                                        post = True
+                                        break
 
-#def go(bot):
+                                if not post:
+                                    c = d['victim'].get('corporation_id','none')
+                                    if str(c) in self.corps:
+                                        subj = 'Lose'
+                                        post = True
 
-while True:
-    try:
-        _url = 'wss://zkillboard.com:2096'
-        _msg = '{"action":"sub","channel":"killstream"}'
-        ws = websocket.create_connection(_url)
-        print('Connected to: {}'.format(_url))
-        ws.send(_msg)
-        print('Subscribed with: {}'.format(_msg))
+                                msg = '`{}` {}'.format(subj, url)
+                                if post:
+                                    print('Sending: {}'.format(msg))
+                                    send(channel, msg)
+                                    time.sleep(0.01)
+                                else:
+                                    print('{} is not interesting'.format(msg))
 
-        running = True
-        while running:
-            time.sleep(0.1)
-            if bot._is_ready.is_set(): # wait until the ready event
-
-                while True:
-                    try:
-                        time.sleep(0.1)
-                        raw = ws.recv()
-                        d = json.loads(raw)
-                        url = d['zkb']['url']
-
-                        subj = '---'
-                        post = False
-                        for attacker in d['attackers']:
-                            c = attacker.get('corporation_id','none')
-                            if c in corps:
-                                subj = 'Win'
-                                post = True
+                            except Exception as e:
+                                print('Exception caught: {}'.format(e))
+                                time.sleep(1)
                                 break
 
-                        if not post:
-                            c = d['victim'].get('corporation_id','none')
-                            if c in corps:
-                                subj = 'Lose'
-                                post = True
-                                break
+            except KeyboardInterrupt:
+                running = False
 
-                        msg = '`{}` {}'.format(subj, url)
-                        if post:
-                            print('Sending: {}'.format(msg))
-                            send(channel, msg)
-                            time.sleep(0.01)
-                        else:
-                            print('{} is not interesting'.format(msg))
+            except Exception as e:
+                print("Unknown Error {}".format(e))
 
-                    except Exception as e:
-                        print('Exception caught: {}'.format(e))
-                        time.sleep(1)
-                        break
+            if running:
+                x = 3
+                print('Sleeping {} seconds...'.format(x))
+                time.sleep(x)
+                print('Restarting...')
+            else:
+                import sys
+                sys.exit(0)
 
-    except KeyboardInterrupt:
-        running = False
+if __name__ == '__main__':
 
-    except Exception as e:
-        print("Unknown Error {}".format(e))
-
-    if running:
-        x = 3
-        print('Sleeping {} seconds...'.format(x))
-        time.sleep(x)
-        print('Restarting...')
-    else:
-        import sys
-        sys.exit(0)
-
-#t = threading.Thread(target=go, args=(bot,))
-#t.daemon = True
-#t.start()
-#while True:
-#    t.join(0.1)
+    bot = Zbot()
+    bot.start()
+    bot.run()
 
