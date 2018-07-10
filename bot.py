@@ -6,11 +6,13 @@ from discord.ext import commands
 from discord.ext.commands import Bot
 import aiohttp
 import re
+from queue import Queue
 
 class Zbot:
     def __init__(self):
         self.pause = False
-
+        self.count = 0 # global kill counter
+        self.qcounter = Queue(maxsize=1) # share counter between main and thread
         self.regions = 'Aridia Black_Rise The_Bleak_Lands Branch Cache Catch The_Citadel Cloud_Ring Cobalt_Edge Curse Deklein Delve Derelik Detorid Devoid Domain Esoteria Essence Etherium_Reach Everyshore Fade Feythabolis The_Forge Fountain Geminate Genesis Great_Wildlands Heimatar Immensea Impass Insmother Kador The_Kalevala_Expanse Khanid Kor-Azor Lonetrek Malpais Metropolis Molden_Heath Oasa Omist Outer_Passage Outer_Ring Paragon_Soul Period_Basis Perrigen_Falls Placid Providence Pure_Blind Querious Scalding_Pass Sinq_Laison Solitude The_Spire Stain Syndicate Tash-Murkon Tenal Tenerifis Tribute Vale_of_the_Silent Venal Verge Vendor Wicked_Creek'.split(' ')
 
         self.corps = []
@@ -39,11 +41,13 @@ class Zbot:
         self.q = asyncio.Queue()
 
     def start(self):
-        self.thread = threading.Thread(target=self.bot_thread, args=(self.loop,self.Bot,self.ch['main'],self.admins,self.private_key))
+        self.thread = threading.Thread(target=self.bot_thread, args=(self.loop,self.Bot,self.ch['main'],self.admins,self.private_key,self.qcounter))
         self.thread.daemon = True
+        self.thread.start()
 
-    def bot_thread(self, loop, bot, channel, admins, private_key):
+    def bot_thread(self, loop, bot, channel, admins, private_key, qcounter):
         asyncio.set_event_loop(loop)
+        self.qthread = qcounter
 
         @bot.event
         async def on_ready():
@@ -62,8 +66,25 @@ class Zbot:
 
         @bot.command(pass_context=True)
         async def ping(ctx):
-            """check to see if bot is alive"""
+            """Check to see if bot is alive"""
             await bot.say(":ping_pong:")
+
+        @bot.command(pass_context=True)
+        async def status(ctx):
+            """Get some statistics."""
+            corps = []
+            count = 0
+            with open('the.corps','r') as f:
+                for line in f.readlines():
+                    corps.append(line.strip().split(":")[0])
+                    count += 1
+            corps = ', '.join(corps)
+            await bot.say("Watching kills/losses for {} corps: {}".format(count, corps))
+
+            if self.pause:
+                await bot.say("But I am currently paused.")
+            else:
+                await bot.say("I will post any mails I see as soon as I see them.")
 
         @bot.command(pass_context=True)
         async def pause(ctx):
@@ -76,6 +97,17 @@ class Zbot:
             """Tell bot to resume posting killmails"""
             self.pause = False
             await bot.say(":bacon: ***Automatic killmail posting resumed.***")
+
+        @bot.command(pass_context=True)
+        async def count(ctx):
+            """Show how many killmails i've seen since last start."""
+            if str(ctx.message.author) in admins:
+                x = []
+                while not self.qthread.empty():
+                    x.append(self.qthread.get_nowait())
+                if not len(x):
+                    x = [0]
+                await bot.say("I've seen a total of {} kills since my last restart.".format(x[-1]))
 
         @bot.command(pass_context=True)
         async def map(ctx):
@@ -203,10 +235,21 @@ class Zbot:
         '''
 
         @bot.command(pass_context=True)
-        async def die(ctx):
-            """Tell bot to logoff. (requires persmission)"""
+        async def reboot(ctx):
+            """Tell bot to logoff and restart. (permissions required)"""
             if str(ctx.message.author) in admins:
-                await bot.say("Shutting down...")
+                await bot.say("Rebooting, please wait.")
+                await bot.logout()
+                running = False
+                import os,sys
+                os.execv(__file__, sys.argv)
+                sys.exit(0)
+
+        @bot.command(pass_context=True)
+        async def die(ctx):
+            """Tell bot to logoff. (permissions required)"""
+            if str(ctx.message.author) in admins:
+                await bot.say("Shutting down.")
                 await bot.logout()
                 running = False
                 import sys
@@ -264,6 +307,9 @@ class Zbot:
                                         subj = 'Lose'
                                         post = True
 
+                                self.count += 1
+                                self.incr() # handle counter queue
+
                                 msg = '`{}` {}'.format(subj, url)
                                 if not self.pause:
                                     if post:
@@ -272,6 +318,7 @@ class Zbot:
                                         time.sleep(0.01)
                                     else:
                                         print('{} is not interesting'.format(msg))
+                                        time.sleep(0.01)
                                 else:
                                     print("Paused, ignoring {}".format(msg))
 
@@ -294,6 +341,13 @@ class Zbot:
             else:
                 import sys
                 sys.exit(0)
+
+    def incr(self):
+        """queue the details from the last mails"""
+        if self.qcounter.full():
+            junk = self.qcounter.get()
+        self.qcounter.put(self.count)
+
 
 if __name__ == '__main__':
 
