@@ -103,5 +103,4 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-the.key
-the.channel
+the.*
