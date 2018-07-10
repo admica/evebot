@@ -1,6 +1,8 @@
-# evediscobot
-Discord bot for fetching Eve statistics
+# eveobot
+Discord bot for Eve
 
 ## Features:
-* Fetch killmail statistics from zkillboard.
 * Autonomously posts killmails to its own channel in real time.
+* Fetch cryptocurrency prices for bitcoin, iota, etcetera...
+* Fetch basic info on users.
+
