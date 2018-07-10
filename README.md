@@ -1,7 +1,7 @@
 # eveobot
 Discord bot for Eve
 
-![logo](https://github.com/admica/evebot/images/logo.jpg)
+![logo](https://github.com/admica/evebot/images/logo.png)
 
 ## Features:
 * **Autonomously** posts killmails to its own channel in real time.
