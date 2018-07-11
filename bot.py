@@ -21,12 +21,12 @@ class Zbot:
                 self.corps.append(line.strip().split(":")[-1])
 
         self.ch = {}
-        with open('the.channel','r') as f:
-            self.ch['main'] = f.readline().strip().split(":")[-1]
-            try:
-                self.ch['debug'] = f.readline().strip().split(":")[-1]
-            except:
-                pass
+        for name in ['main','debug']:
+            with open('the.channel_{}'.format(name),'r') as f:
+                self.ch[name] = {}
+                line = f.readline().strip()
+                self.ch[name]['name'] = ':'.join(line.split(":")[:-1])
+                self.ch[name]['id'] = line.split(":")[-1]
 
         with open('the.key','r') as f:
             self.private_key = f.readline().strip()
@@ -41,25 +41,30 @@ class Zbot:
         self.q = asyncio.Queue()
 
     def start(self):
-        self.thread = threading.Thread(target=self.bot_thread, args=(self.loop,self.Bot,self.ch['main'],self.admins,self.private_key,self.qcounter))
+        self.thread = threading.Thread(target=self.bot_thread, args=(self.loop,self.Bot,self.ch['main'],self.admins,self.private_key,self.qcounter,self.ch))
         self.thread.daemon = True
         self.thread.start()
 
-    def bot_thread(self, loop, bot, channel, admins, private_key, qcounter):
+    def bot_thread(self, loop, bot, channel, admins, private_key, qcounter, ch):
         asyncio.set_event_loop(loop)
         self.qthread = qcounter
+        self.ch = ch
 
         @bot.event
         async def on_ready():
             while True:
                 data = await self.q.get()
+                print('bot got data.')
                 event = data[0]
                 message = data[1]
                 channel = data[2]
 
                 try:
-                    await bot.send_message(bot.get_channel(channel), message)
-                except:
+                    channel_id = bot.get_channel(channel)
+                    print('bot.send_message({}, {})'.format(channel_id, message))
+                    await bot.send_message(channel_id, message)
+                    print('bot.send_message sent.')
+                except Exception as e:
                     pass
 
                 event.set()
@@ -72,19 +77,22 @@ class Zbot:
         @bot.command(pass_context=True)
         async def status(ctx):
             """Get some statistics."""
-            corps = []
-            count = 0
-            with open('the.corps','r') as f:
-                for line in f.readlines():
-                    corps.append(line.strip().split(":")[0])
-                    count += 1
-            corps = ', '.join(corps)
-            await bot.say("Watching kills/losses for {} corps: {}".format(count, corps))
+            try:
+                corps = []
+                count = 0
+                with open('the.corps','r') as f:
+                    for line in f.readlines():
+                        corps.append(line.strip().split(":")[0])
+                        count += 1
+                corps = ', '.join(corps)
+                await bot.say("Watching kills/losses for {} corps: {}".format(count, corps))
 
-            if self.pause:
-                await bot.say("But I am currently paused.")
-            else:
-                await bot.say("I will post any mails I see as soon as I see them.")
+                if self.pause:
+                    await bot.say("But I am currently paused.")
+                else:
+                    await bot.say("I will post any mails I see as soon as I see them.")
+            except Exception as e:
+                print("ERROR in status: {}".format(e))
 
         @bot.command(pass_context=True)
         async def pause(ctx):
@@ -233,6 +241,37 @@ class Zbot:
             if channel:
                 await ctx.bot.send_typing(bot.get_channel(channel))
         '''
+
+        @bot.command(pass_context=True)
+        async def get_ch(ctx):
+            """Display the channel id's I send messages to"""
+            for key in self.ch:
+                await bot.say("{}: [{}] id: {}".format(key, self.ch[key]['name'], self.ch[key]['id']))
+
+        @bot.command(pass_context=True)
+        async def set_ch(ctx):
+            """Set the channel id's I send messages to"""
+            try:
+                if str(ctx.message.author) in admins:
+                    msg = ctx.message.content.split()
+                    if len(msg) == 4:
+                        key, name, channel_id = msg[1:]
+                        if key in self.ch:
+                            try:
+                                with open('the.channel_{}'.format(key),'w') as f:
+                                    f.write("{}:{}\n".format(name, channel_id))
+                                    self.ch[key]['name'] = name
+                                    self.ch[key]['id'] = channel_id
+                                    await bot.say("{} output channel set to {} id: {}".format(key, name, channel_id))
+                            except Exception as e:
+                                await bot.say("Failed to set {} output channel.".format(key))
+                                await bot.say(e)
+                        else:
+                            await bot.say("{} is an invalid key.".format(key))
+                    else:
+                        await bot.say("Usage: {} <key> <name> <channel_id>".format(msg[0]))
+            except Exception as e:
+                print("ERROR in set_channel: {}".format(e))
 
         @bot.command(pass_context=True)
         async def reboot(ctx):
