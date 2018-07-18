@@ -5,7 +5,9 @@ Discord bot for Eve
 
 ## Features:
 * **Autonomously** posts killmails to any channel in real time.
-* Pause and resume auto posting.
+* Save/Load EFT style ship fittings grouped by ship type.
+* Show running total of all killmails seen since login and since last query.
 * Fetch dotlan maps by region.
+* Pause and resume auto posting.
 * Fetch cryptocurrency price/volume/change for bitcoin, iota, etcetera... because why not?
 
