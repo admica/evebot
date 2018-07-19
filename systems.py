@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Prereq for Discord eve bot by admica
-# Generate a static map of system_id to system name for every system in eve.
+# Generate a static map of system_id to system name and info for every system in eve.
 # Currently generates 8235 mappings.
 
 from time import sleep
@@ -18,22 +18,25 @@ with open('systems_list.txt','w') as f:
     f.write(r.text)
 
 f = open('systems.txt','a')
+d = {}
+count = 0
 for s in rlist:
     try:
         if int(s) > leftoff:
             r = requests.get('{}{}'.format(url, s))
-            d = eval(r.text)
-            name = d['name']
-            text = '"{}":"{}",'.format(s,name)
-            try:
-                print(text)
-            except Exception as e:
-                print("UNPRINTABLE system {}".format(s))
-            f.write(text)
-            f.flush()
-            sleep(.05)
+            dd = eval(r.text)
+            d[s] = dd
+            print(dd)
+            sleep(.25)
+            count += 1
+            print(count)
+
     except Exception as e:
         print("ERROR with {} system: {}".format(s, e))
 
-# don't forget to remove final char
-# then include { and } at start and end to make eval()'able.
+with open('systems.txt','w') as f:
+    f.write(str(d))
+
+import sys
+sys.exit(0)
+
