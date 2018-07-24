@@ -7,9 +7,9 @@ from time import sleep
 import requests
 
 # start from here
-leftoff = 1
+leftoff = 0
 
-url = 'https://esi.evetech.net/dev/universe/systems/'
+url = 'https://esi.evetech.net/latest/universe/systems/'
 
 r = requests.get(url)
 rlist = eval(r.text)
