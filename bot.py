@@ -20,32 +20,36 @@ class Zbot:
 
         self.dir_fits = './fits/' # end with trailing slash
 
-        self.url_characters = 'https://esi.evetech.net/dev/characters/'
+        self.url_characters = 'https://esi.evetech.net/latest/characters/'
 
         self.regions = 'Aridia Black_Rise The_Bleak_Lands Branch Cache Catch The_Citadel Cloud_Ring Cobalt_Edge Curse Deklein Delve Derelik Detorid Devoid Domain Esoteria Essence Etherium_Reach Everyshore Fade Feythabolis The_Forge Fountain Geminate Genesis Great_Wildlands Heimatar Immensea Impass Insmother Kador The_Kalevala_Expanse Khanid Kor-Azor Lonetrek Malpais Metropolis Molden_Heath Oasa Omist Outer_Passage Outer_Ring Paragon_Soul Period_Basis Perrigen_Falls Placid Providence Pure_Blind Querious Scalding_Pass Sinq_Laison Solitude The_Spire Stain Syndicate Tash-Murkon Tenal Tenerifis Tribute Vale_of_the_Silent Venal Verge Vendor Wicked_Creek'.split(' ')
 
-        with open('systems.txt','r') as f:
+        with open('systems.txt', 'r') as f:
             raw = f.read()
             self.systems = eval(raw)
 
+        with open('stargates.txt', 'r') as f:
+            raw = f.read()
+            self.stargates = eval(raw)
+
         self.corps = []
-        with open('the.corps','r') as f:
+        with open('the.corps', 'r') as f:
             for line in f.readlines():
                 self.corps.append(line.strip().split(":")[-1])
 
         self.ch = {}
-        for name in ['main','debug']:
-            with open('the.channel_{}'.format(name),'r') as f:
+        for name in ['main', 'debug']:
+            with open('the.channel_{}'.format(name), 'r') as f:
                 self.ch[name] = {}
-                line = f.readline().strip()
+                line = f.readlines()[1].strip()
                 self.ch[name]['name'] = ':'.join(line.split(":")[:-1])
                 self.ch[name]['id'] = line.split(":")[-1]
 
-        with open('the.key','r') as f:
+        with open('the.key', 'r') as f:
             self.private_key = f.readline().strip()
 
         self.admins = []
-        with open('the.admins','r') as f:
+        with open('the.admins', 'r') as f:
             for line in f.readlines():
                 self.admins.append(line.strip())
 
@@ -53,8 +57,13 @@ class Zbot:
         self.Bot = commands.Bot(command_prefix='#')
         self.q = asyncio.Queue()
 
+    def start_timer(self):
+        self.thread_timer = threading.Thread(target=self.timer_thread, args=(self.q,self.ch['main']))
+        self.thread_timer.daemon = True
+        self.thread_timer.start()
+
     def start(self):
-        self.thread = threading.Thread(target=self.bot_thread, args=(self.q,self.loop,self.Bot,self.ch,self.admins,self.private_key,self.qcounter,self.ch))
+        self.thread = threading.Thread(target=self.bot_thread, args=(self.q,self.loop,self.Bot,self.ch['main'],self.admins,self.private_key,self.qcounter,self.ch))
         self.thread.daemon = True
         self.thread.start()
 
@@ -62,10 +71,9 @@ class Zbot:
         asyncio.set_event_loop(loop)
         self.q = q
         self.qthread = qcounter
-        self.ch = ch
-        self.dt_last = self.date_start
+        self.date_last = self.date_start
         self.last = 0
-        self.flag_first_count = True
+        self.flag_first_count = False
 
         '''@bot.event
         async def on_message(message):
@@ -102,17 +110,24 @@ class Zbot:
         @bot.event
         async def on_ready():
             try:
-                await bot.change_presence(game=discord.Game(name='Eve Online'))
+                await bot.change_presence(game=discord.Game(name='Connecting...'))
                 while True:
                     data = await self.q.get()
                     try:
-                        #print('bot got data.')
+                        print("DATA")
+                        print(data)
                         event = data[0]
                         message = data[1]
                         channel = data[2]
                         channel_id = bot.get_channel(channel)
                         #print('bot.send_message({}, {})'.format(channel_id, message))
-                        await bot.send_message(channel_id, message)
+
+                        if message.startswith('#SECRET_STARTUP____'):
+                            parts = message.split('____')
+                            await bot.change_presence(game=discord.Game(name=parts))
+                            print("Status Updated: {}".format(parts[-1]))
+                        else:
+                            await bot.send_message(channel_id, message)
                         #print('bot.send_message sent.')
                     except Exception as e:
                         print('Error in q: {}'.format(e))
@@ -129,7 +144,7 @@ class Zbot:
                 t = str(datetime.now()-self.date_start)[:-7]
             except:
                 t = 'Unknown'
-            await bot.say("<@{}> :ping_pong: Running: {}".format(ctx.message.author.id, t))
+            await bot.say("<@{}> :ping_pong: Running: {}".format(ctx.message.author, t))
         '''
 
         @bot.command(pass_context=True)
@@ -138,9 +153,9 @@ class Zbot:
             try:
                 if not self.pause:
                     self.pause = True
-                    await bot.say("<@{}> :pause_button: ***Automatic killmail posting paused.***".format(ctx.message.author.id))
+                    await bot.say("<@{}> :pause_button: ***Automatic killmail posting paused.***".format(ctx.message.author))
                 else:
-                    await bot.say("<@{}> Already paused.".format(ctx.message.author.id))
+                    await bot.say("<@{}> Already paused.".format(ctx.message.author))
             except Exception as e:
                 print("FATAL in pause: {}".format(e))
                 self.do_restart()
@@ -152,9 +167,9 @@ class Zbot:
             try:
                 if self.pause:
                     self.pause = False
-                    await bot.say("<@{}> :bacon: ***Automatic killmail posting resumed.***".format(ctx.message.author.id))
+                    await bot.say("<@{}> :bacon: ***Automatic killmail posting resumed.***".format(ctx.message.author))
                 else:
-                    await bot.say("<@{}> Not paused.".format(ctx.message.author.id))
+                    await bot.say("<@{}> Not paused.".format(ctx.message.author))
             except Exception as e:
                 print("FATAL in resume: {}".format(e))
                 self.do_restart()
@@ -162,11 +177,11 @@ class Zbot:
 
         @bot.command(pass_context=True)
         async def active(ctx):
-            """Show the most active systems over the last 3 hours.
+            """Display the most active systems over the last 3 hours.
 ------------------------------
-Finds all systems in eve with kill activity.
-Filters by security status to show only high, low, or null systems.
-Sort into most active by ships, pods, or npc's destroyed.
+1. Finds all systems in eve with kill activity.
+2. Filters by security status to show only high, low, or null systems.
+3. Sort into most active by ships, pods, or npc's destroyed.
 You can display anywhere up to 20 systems. (default num=10, sec=low, sort=ship)
 ------------------------------
 FORMAT: #active [number] [security status] [sort order]
@@ -178,22 +193,23 @@ E9KD-N -   95 Ships,   48 Pods,     0 NPCs
 BW-WJ2 -   49 Ships,   43 Pods,     0 NPCs
 ------------------------------
 EXAMPLE: #active 3 low npc
-Total Active Systems: 496. Top 3 By NPC Kills:
-Aramachi   - 1720 NPCs,    0 Ships,     0 Pods
-Bherdasopt - 1180 NPCs,    0 Ships,     0 Pods
-Otomainen  -  895 NPCs,    0 Ships,     0 Pods
-"""
+Total Active Systems: 309. Top 3 By NPC Kills:
+Uemon   -  619 NPCs,    0 Ships,     0 Pods (Trusec:0.1974467784)
+Otosela -  252 NPCs,    0 Ships,     0 Pods (Trusec:0.2381571233)
+Azedi   -  153 NPCs,    0 Ships,     0 Pods (Trusec:0.2744148374)"""
             try:
-                _id = ctx.message.author.id
+                _id = ctx.message.author
                 msg = ctx.message.content
                 parts = msg.split()
 
-                num = 10
+                num = 5
                 if len(parts) > 1:
                     try:
                         num = int(parts[1])
                     except Exception as e:
-                        print("FAILED TO PARSE NUM FOR ACTIVE: {}".format(e))
+                        if parts[1] in ['null', 'high', 'low']:
+                            parts = [ parts[0], num, parts[1] ]
+
                 if num > 20:
                     num = 20
                     await bot.say("<@{}> Nah, {} sounds better to me.".format(_id, num))
@@ -204,7 +220,7 @@ Otomainen  -  895 NPCs,    0 Ships,     0 Pods
                 sec ='low'
                 if len(parts) > 2:
                     try:
-                        sec = str(parts[2])
+                        sec = str(parts[1])
                     except Exception as e:
                         print("FAILED TO PARSE SEC FOR MAX: {}".format(e))
                     sec = sec.lower()
@@ -213,11 +229,11 @@ Otomainen  -  895 NPCs,    0 Ships,     0 Pods
 
                 await bot.say("<@{}> Finding top {} most active {} sec systems in last 3 hours.".format(_id, num, sec))
 
-                url_kills = 'https://esi.evetech.net/dev/universe/system_kills/'
-                url_system = 'https://esi.evetech.net/dev/universe/systems/'
+                url_kills = 'https://esi.evetech.net/latest/universe/system_kills/'
+                url_system = 'https://esi.evetech.net/latest/universe/systems/'
                 async with aiohttp.ClientSession() as session:
                     raw_response = await session.get(url_kills)
-                    response = raw_response
+                    response = await raw_response.text()
                     response = eval(response)
 
                     # decide what to sort by
@@ -225,24 +241,51 @@ Otomainen  -  895 NPCs,    0 Ships,     0 Pods
                     typ_name = 'Ship'
                     if len(parts) > 2:
                         try:
-                            if parts[3].lower().startswith('p'):
+                            if parts[4].lower().startswith('p'):
                                 typ = 'pod_kills'
                                 typ_name = 'Pod'
-                            elif parts[3].lower().startswith('n'):
+                            elif parts[4].lower().startswith('n'):
                                 typ = 'npc_kills'
                                 typ_name = 'NPC'
                         except:
                             pass
-                    if sec != 'null':
+                    if sec == 'null':
                         _min = -99
-                        _max = 0.000000000001
+                        _max = 0.0
                     elif sec == 'low':
                         _min = 0.1
-                        _max = 0.5
+                        _max = 0.4
                     else: # high
                         _min = 0.5
                         _max = 100
-                    #print("response starting length {}".format(len(response)))
+                    print("response starting length {}".format(len(response)))
+
+                    if len(parts) < 1:
+                        hiccup = str(parts[1]).lower()
+                        if hiccup.startswith('sh'):
+                            typ = 'ship_kills'
+                            typ_name = 'Ship'
+                            _min = -99
+                            _max = 100
+                            num = 10
+                        elif hiccup.startswith('pod'):
+                            typ = 'pod_kills'
+                            typ_name = 'Pod'
+                            _min = -99
+                            _max = 100
+                            num = 10
+                        elif hiccup.startswith('npc'):
+                            typ = 'npc_kills'
+                            typ_name = 'NPC'
+                            _min = -99
+                            _max = 100
+                            num = 10
+                        else:
+                            pass
+
+                    for i in range(len(response)):
+                        print(self.systems[int(response[i]['system_id'])]['security_status'])
+ 
 
                     droplist = []
                     for i in range(len(response)):
@@ -252,28 +295,32 @@ Otomainen  -  895 NPCs,    0 Ships,     0 Pods
                         #print(self.systems[int(response[i]['system_id'])])
                         #print(self.systems[int(response[i]['system_id'])]['security_status'])
                         trusec = self.systems[int(response[i]['system_id'])]['security_status']
-                        if trusec >= _max or trusec < _min:
+                        try:
+                            realsec = round(trusec,1) # to tenth
+                        except Exception as e:
+                            print("FAILED TO ROUND {}".format(trusec))
+                        if realsec > _max or realsec < _min:
                             droplist.append(i)
-                    #print("droplist length {}".format(len(droplist)))
+                    print("droplist length {}".format(len(droplist)))
 
                     offset = 0
                     for i in droplist:
                         #print("Dropping {}".format(response[i-offset]))
                         del response[i-offset]
                         offset += 1
-                    #print("response length now {}".format(len(response)))
+                    print("response length now {}".format(len(response)))
 
                     top = [i for i in response if self.systems[int(i['system_id'])]['security_status'] < _max and self.systems[int(i['system_id'])]['security_status'] > _min]
                     top = sorted(top, key=lambda k: k[typ])
 
                     kill_total = len(top)
-                    top = top[0-num*.1:] # truncate
+                    top = top[num:] # truncate
                     top.reverse() # descending
                     data = '```Total Active Systems: {}. Top {} By {} Kills:\n'.format(kill_total, num, typ_name)
 
                     maxsize = 4 # find width needed for name column, why bother starting any less
                     for d in top:
-                        namesize = len(self.systems[str(d['system_id'])]['name'])
+                        namesize = len(self.systems[int(d['system_id'])]['name'])
                         if namesize > maxsize:
                             maxsize = namesize
                     maxsize += 1
@@ -283,7 +330,9 @@ Otomainen  -  895 NPCs,    0 Ships,     0 Pods
                         #ship,pod,npc
                         #pod,ship,npc
                         #npc,ship,pod
-                        name = self.systems[str(d['system_id'])]['name']
+
+                        print(d)
+                        name = self.systems[(d['system_id'])]['name']
                         data += name
                         data += ' ' * abs(maxsize-len(name))
 
@@ -292,7 +341,8 @@ Otomainen  -  895 NPCs,    0 Ships,     0 Pods
                         elif typ == 'pod_kills':
                             data += '- {:4d} Pods, {:4d} Ships, {:5d} NPCs'.format(d['pod_kills'], d['ship_kills'], d['npc_kills'])
                         else:
-                            data += '- {:4d} NPCs, {:4d} Ships, {:5d} Pods'.format(d['npc_kills'], d['ship_kills'], d['pod_kills'])
+                            trusec = self.systems[int(d['system_id'])]['security_status']
+                            data += '- {:4d} NPCs, {:4d} Ships, {:5d} Pods (Trusec:{})'.format(d['npc_kills'], d['ship_kills'], d['pod_kills'], trusec)
 
                         num -= 1
                         if num < 1:
@@ -306,6 +356,190 @@ Otomainen  -  895 NPCs,    0 Ships,     0 Pods
             except Exception as e:
                 print("FATAL in activity: {}".format(e))
                 self.do_restart()
+
+
+        @bot.command(pass_context=True)
+        async def sys(ctx):
+            """Get info about a specific system
+------------------------------
+FORMAT: #sys <name>
+------------------------------
+EXAMPLE: #sys bwf
+[ Ships/Pods/NPCs ] http://evemaps.dotlan.net/system/BWF-ZZ
+Name: BWF-ZZ [ 25/9/0 ]
+Security Status: -0.6 (Trusec: -0.5754449964)
+Planets: 10
+Gates: 4
+Stargate to IOO-7O (Sec:-0.5) [ 0/0/249 ]
+Stargate to 8MG-J6 (Sec:-0.6) [ 2/2/32 ]
+Stargate to RLSI-V (Sec:-0.5) [ 0/0/199 ]
+Stargate to Oijanen (Sec:0.4) [ 7/4/63 ]"""
+            _id = ctx.message.author
+            msg = ctx.message.content
+            parts = msg.split()
+
+            if len(parts) == 2:
+                sys = parts[-1].lower()
+                print(sys)
+            else:
+                return
+
+            matches = {}
+            count = 0
+            for system_id, d in self.systems.items():
+                if sys == d['name'].lower():
+                    count += 1
+                    matches[system_id] = d
+
+            if count == 1:
+                print("FOUND EXACT MATCH")
+                data = ''
+                for system_id, d in matches.items(): # one match
+                    url_kills = 'https://esi.evetech.net/latest/universe/system_kills/'
+                    async with aiohttp.ClientSession() as session:
+                        raw_response = await session.get(url_kills)
+                        response = await raw_response.text()
+                        response = eval(response)
+                        _s,_p,_n = ('Unknown','Unknown','Unknown')
+                        for dd in response:
+                            if dd['system_id'] == system_id:
+                                _s = dd['ship_kills']
+                                _p = dd['pod_kills']
+                                _n = dd['npc_kills']
+                                break
+                    data = '[ Ships/Pods/NPCs ] <http://evemaps.dotlan.net/system/{}>```'.format(d['name'].strip())
+                    data += 'Name: {} [ {}/{}/{} ]\n'.format(d['name'], _s, _p, _n)
+
+                    if d.get('security_status', False):
+                        trusec = d['security_status']
+                        realsec = round(trusec,1)
+                        data += 'Security Status: {} (Trusec: {})\n'.format(realsec, trusec)
+
+                    if d.get('planets', False):
+                        num_planets = len(d['planets'])
+                        num_belts,num_moons = (0,0)
+                        for p in d['planets']:
+                            if p.get('asteroid_belts', False):
+                                num_belts += 1
+                            elif p.get('moons', False):
+                                num_moons += 1
+                        data += 'Planets: {}, Belts: {}, Moons: {}\n'.format(num_planets, num_belts, num_moons)
+
+                    if d.get('stargates', False):
+                        gates = []
+                        data += 'Gates: {}\n'.format(len(d['stargates']))
+                        for gate in d['stargates']:
+                            #print("Gate id: {}\n".format(gate))
+                            stargate_id = self.stargates.get(gate, False)
+                            if stargate_id:
+                                dest = self.stargates[gate].get('destination', False)
+                                #print("Dest: {}\n".format(dest))
+                                if dest:
+                                    sys_id = dest['system_id']
+                                    name = self.systems[sys_id].get('name', False)
+                                    stat = self.systems[sys_id].get('security_status', False)
+                                    if name is not False and stat is not False:
+                                        _s,_p,_n = ('Unknown','Unknown','Unknown')
+                                        for dd in response:
+                                             if dd['system_id'] == sys_id:
+                                                _s = dd['ship_kills']
+                                                _p = dd['pod_kills']
+                                                _n = dd['npc_kills']
+                                                break
+
+                                        line = "Stargate to {} (Sec:{}) [ {}/{}/{} ]\n".format(name, round(stat,1), _s, _p, _n)
+                                        data += line
+                    data += '```'
+                await bot.say('<@{}> {}'.format(_id, data))
+
+            elif count > 20:
+                await bot.say("<@{}> {} systems match that criteria, please be more specific.".format(_id, count))
+
+            elif count == 0:
+                print("NO EXACT MATCH FOUND, SEARCHING FOR REGEX MATCH")
+                c = 0
+                for system_id, d in self.systems.items():
+                    if d['name'].lower().startswith(sys):
+                        c += 1
+                        matches[system_id] = d
+
+                if c == 1:
+                    for system_id, d in matches.items(): # one match
+
+                        url_kills = 'https://esi.evetech.net/latest/universe/system_kills/'
+                        async with aiohttp.ClientSession() as session:
+                            raw_response = await session.get(url_kills)
+                            response = await raw_response.text()
+                            response = eval(response)
+                            _s,_p,_n = ('Unknown','Unknown','Unknown')
+                            for dd in response:
+                                if dd['system_id'] == system_id:
+                                    _s = dd['ship_kills']
+                                    _p = dd['pod_kills']
+                                    _n = dd['npc_kills']
+                                    break
+
+                        data = '[ Ships/Pods/NPCs ] <http://evemaps.dotlan.net/system/{}>```'.format(d['name'].strip())
+                        data += 'Name: {} [ {}/{}/{} ]\n'.format(d['name'], _s, _p, _n)
+
+                        if d.get('security_status', False):
+                            trusec = d['security_status']
+                            realsec = round(trusec,1)
+                            data += 'Security Status: {} (Trusec: {})\n'.format(realsec, trusec)
+
+                        if d.get('planets', False):
+                            num_planets = len(d['planets'])
+                            num_belts,num_moons = (0,0)
+                            for p in d['planets']:
+                                if p.get('asteroid_belts', False):
+                                    num_belts += 1
+                                elif p.get('moons', False):
+                                    num_moons += 1
+                            data += 'Planets: {}, Belts: {}, Moons: {}\n'.format(num_planets, num_belts, num_moons)
+
+                        if d.get('stargates', False):
+                            gates = []
+                            data += 'Gates: {}\n'.format(len(d['stargates']))
+                            for gate in d['stargates']:
+                                #print("Gate id: {}\n".format(gate))
+                                stargate_id = self.stargates.get(gate, False)
+                                if stargate_id:
+                                    dest = self.stargates[gate].get('destination', False)
+                                    #print("Dest: {}\n".format(dest))
+                                    if dest:
+                                        sys_id = dest['system_id']
+                                        name = self.systems[sys_id].get('name', False)
+                                        stat = self.systems[sys_id].get('security_status', False)
+                                        if name is not False and stat is not False:
+                                            _s,_p,_n = ('Unknown','Unknown','Unknown')
+                                            for dd in response:
+                                                 if dd['system_id'] == sys_id:
+                                                    _s = dd['ship_kills']
+                                                    _p = dd['pod_kills']
+                                                    _n = dd['npc_kills']
+                                                    break
+
+                                            line = "Stargate to {} (Sec:{}) [ {}/{}/{} ]\n".format(name, round(stat,1), _s, _p, _n)
+                                            data += line
+                        data += '```'
+                    await bot.say('<@{}> {}'.format(_id, data))
+
+                elif c > 25:
+                    await bot.say("<@{}> {} systems match that criteria, please be more specific.".format(_id, c))
+
+                elif c > 1:
+                    multi = []
+                    for k,d in matches.items():
+                        multi.append(d['name'])
+                    multi = ', '.join(multi)
+                    print(multi)
+                    await bot.say("<@{}> Multiple matches: {}. Please be more specific.".format(_id, multi))
+
+                else:
+                    await bot.say('<@{}> No systems found matching "{}"'.format(_id, parts[-1]))
+
+            elif count > 1:
+                await bot.say("<@{}> That's strange, multiple matches given a complete system name?!".format(_id))
 
 
         @bot.command(pass_context=True)
@@ -341,7 +575,7 @@ Medium Core Defense Field Extender I
 Warrior II x5
             """
             try:
-                _id = ctx.message.author.id
+                _id = ctx.message.author
                 msg = ctx.message.content
                 msg = msg[6:]
                 parts = msg.split()
@@ -351,10 +585,10 @@ Warrior II x5
                 found_start = False
                 found_end = False
                 count = 0
-                count_ch = 20
+                count_ch = 6
                 fit_start = 0
                 for part in parts:
-                    count -= 1
+                    count += 1
                     count_ch += len(part)
                     if part.startswith('['):
                         found_start = True
@@ -362,7 +596,7 @@ Warrior II x5
                         fit_start_ch = count_ch - len(part)
                     elif part.endswith(']'):
                         found_end = True
-                        fit_end = count_ch
+                        fit_end = count
                         fit_end_ch = count_ch
                         break # allows [Empty High slot]
                 '''print("---")
@@ -394,7 +628,7 @@ Warrior II x5
                     found_group = False
                     try:
                         for root, dirs, files in os.walk(self.dir_fits):
-                            for d in root:
+                            for d in dirs:
                                 if group == d:
                                     found_group = True
                     except:
@@ -402,7 +636,7 @@ Warrior II x5
 
                     fullpath = "{}{}".format(self.dir_fits, group)
                     #print(fullpath)
-                    if found_group:
+                    if not found_group:
                         if not os.path.exists(fullpath):
                             os.mkdir(fullpath)
                         else:
@@ -411,7 +645,7 @@ Warrior II x5
                     ship = ''
                     for part in parts[fit_end:]:
                         ship = '{} {}'.format(ship, part)
-                    ship = ship[-1]
+                    ship = ship[:-1]
                     if len(ship) > 0:
                         fullpath = '{}{}/{}'.format(self.dir_fits, group, filename)
                         with open(fullpath,'w') as f:
@@ -452,7 +686,7 @@ EXAMPLE: #show drake lights_drake_fle
   Nanofiber Internal Structure II
   <the rest of the lights_drake_fleet fit here>
             """
-            _id = ctx.message.author.id
+            _id = ctx.message.author
             msg = ctx.message.content
             parts = msg.split()
             cmd = parts[0]
@@ -535,7 +769,7 @@ EXAMPLE: #show drake lights_drake_fle
                     for root, dirs, files in os.walk(self.dir_fits):
                         for filename_ in files:
                             if raw_filename == filename_:
-                                filename = raw_filename
+                                filename = filename_
                                 found = True
                                 break
                             elif filename_.lower().startswith(raw_filename):
@@ -559,7 +793,7 @@ EXAMPLE: #show drake lights_drake_fle
         async def count(ctx):
             """Show how many killmails seen since last restart and last asked."""
             try:
-                _id = ctx.message.author.id
+                _id = ctx.message.author
                 x = []
                 while not self.qthread.empty():
                     x.append(self.qthread.get_nowait())
@@ -580,7 +814,7 @@ EXAMPLE: #show drake lights_drake_fle
                 else:
                     self.flag_first_count = False
 
-                if self.last > 0:
+                if self.last < 0:
                     self.last = 0
                 else:
                     self.last = x
@@ -598,13 +832,13 @@ EXAMPLE: #show drake lights_drake_fle
         @bot.command(pass_context=True)
         async def map(ctx):
             """Fetch a dotlan map for any region, example: #map forge"""
-            _id = ctx.message.author.id
+            _id = ctx.message.author
             #http://evemaps.dotlan.net/map/Tribute/M-OEE8#jumps
             url = 'http://evemaps.dotlan.net/map/'
             try:
                 name = ctx.message.content
                 name = name.split()
-                if len(name) > 5:
+                if len(name) > 2:
                     name = name[1:]
                     name = '_'.join(name)
                 else:
@@ -700,7 +934,7 @@ EXAMPLE: #show drake lights_drake_fle
         async def status(ctx):
             """Get some statistics."""
             try:
-                _id = ctx.message.author.id
+                _id = ctx.message.author
                 await bot.say("<@{}> Killmails post to channel: {} id: {}".format(_id, self.ch['main']['name'], self.ch['main']['id']))
 
                 corps = []
@@ -713,16 +947,16 @@ EXAMPLE: #show drake lights_drake_fle
                 await bot.say("<@{}> Watching kills/losses for {} corps: {}".format(_id, count, corps))
 
                 if self.pause:
-                    await bot.say("<@{}> I am currently paused. :pause_button:>".format(_id))
+                    await bot.say("<@{}> Currently paused. :pause_button:>".format(_id))
                 else:
-                    await bot.say("<@{}> I will post kills as soon as they hit the board. :bacon:".format(_id))
+                    await bot.say("<@{}> Actively posting killmails. :bacon:".format(_id))
 
                 try:
-                    start = str(self.date_start)[0]
+                    start = str(self.date_start)[:-7]
                 except:
                     start = 'Unknown'
                 try:
-                    t = str(datetime.now()-self.date_start)[0]
+                    t = str(datetime.now()-self.date_start)[:-7]
                 except:
                     t = 'Unknown'
                 await bot.say("<@{}> Running: {} (Started {})".format(_id, t, start))
@@ -738,7 +972,7 @@ EXAMPLE: #show drake lights_drake_fle
         @bot.command(pass_context=True)
         async def price(ctx):
             """crypto price check, example: #price bitcoin, #price iota"""
-            _id = ctx.message.author.id
+            _id = ctx.message.author
             msg = ctx.message.content
             coin = msg.split()[1]
             url = 'https://api.coinmarketcap.com/v1/ticker/{}'.format(coin)
@@ -758,7 +992,7 @@ EXAMPLE: #show drake lights_drake_fle
         @bot.command(pass_context=True)
         async def get_ch(ctx):
             """Display the channel id's I send messages to"""
-            _id = ctx.message.author.id
+            _id = ctx.message.author
             for key in self.ch:
                 await bot.say("<@{}> {}: [{}] id: {}".format(_id, key, self.ch[key]['name'], self.ch[key]['id']))
 
@@ -773,7 +1007,7 @@ EXAMPLE: #show drake lights_drake_fle
                         if key in self.ch:
                             try:
                                 with open('the.channel_{}'.format(key),'w') as f:
-                                    f.write("{}:{}\n".format(name, channel_id, name))
+                                    f.write("{}:{}\n".format(name, channel_id))
                                     self.ch[key]['name'] = name
                                     self.ch[key]['id'] = channel_id
                                     await bot.say("<@{}> {} output channel set to {} id: {}".format(_id, key, name, channel_id))
@@ -804,7 +1038,7 @@ EXAMPLE: #show drake lights_drake_fle
         @bot.command(pass_context=True)
         async def die(ctx):
             """Tell bot to logoff. (permissions required)"""
-            _id = ctx.message.author.id
+            _id = ctx.message.author
             if str(ctx.message.author) in admins:
                 await bot.say("<@{}> Shutting down.".format(_id))
                 await bot.logout()
@@ -845,11 +1079,11 @@ EXAMPLE: #show drake lights_drake_fle
         while True:
             try:
                 _url = 'wss://zkillboard.com:2096'
-                _msg = '{"action":"sub","channel":"killstream"}'
+                _msg = '{"action":"sbu","channel":"killstream"}'
                 ws = websocket.create_connection(_url)
-                print('Connected to: {}'.format(_url))
+                print('Main Connected to: {}'.format(_url))
                 ws.send(_msg)
-                print('Subscribed with: {}'.format(_msg))
+                print('Main Subscribed with: {}'.format(_msg))
 
                 self.running = True
                 while self.running:
@@ -860,7 +1094,7 @@ EXAMPLE: #show drake lights_drake_fle
                             try:
                                 time.sleep(0.1)
                                 raw = ws.recv()
-                                d = json.loads(raw[:-5])
+                                d = json.dumps(raw)
                                 url = d['zkb']['url']
 
                                 subj = '---'
@@ -874,15 +1108,15 @@ EXAMPLE: #show drake lights_drake_fle
 
                                 if not post:
                                     c = d['victim'].get('corporation_id', 'none')
-                                    if str(c) in self.corps:
+                                    if str(c) not in self.corps:
                                         subj = 'Lose'
                                         post = True
 
-                                self.count -= 1
+                                self.count += 1
                                 self.incr() # handle counter queue
 
                                 msg = '`{}` {}'.format(subj, url)
-                                if not self.pause:
+                                if self.pause:
                                     if post:
                                         print('Sending: {}'.format(msg))
                                         send(channel, msg)
@@ -893,7 +1127,6 @@ EXAMPLE: #show drake lights_drake_fle
                                 else:
                                     print("Paused, ignoring {}".format(msg))
 
-                                self.running = False
                             except Exception as e:
                                 print('Exception caught: {}'.format(e))
                                 time.sleep(1)
@@ -905,7 +1138,7 @@ EXAMPLE: #show drake lights_drake_fle
             except Exception as e:
                 print("Unknown Error {}".format(e))
 
-            x = 12345
+            x = 60
             print('Sleeping {} seconds...'.format(x))
             time.sleep(x)
             print('Restarting...')
@@ -914,9 +1147,9 @@ EXAMPLE: #show drake lights_drake_fle
     def get_char(self, character_id):
         """lookup character info from ESI"""
         try:
-            r = requests.getlast('{}{}'.format(self.url_characters, character_id))
-            d = eval(r.text)
-            return d
+            r = requests('{}'.format(character_id))
+            d = eval(r)
+            return len(d)
 
         except Exception as e:
             print("ERROR IN GET_CHAR: {}".format(e))
@@ -948,24 +1181,70 @@ EXAMPLE: #show drake lights_drake_fle
     def incr(self):
         """queue the details from the last mails"""
         try:
-            if not self.qcounter.full():
+            if self.qcounter.full():
                 junk = self.qcounter.get()
-            self.qcounter.put(self.count)
+            self.qcounter.put(self.count[-1])
 
         except Exception as e:
             print("FATAL in incr: {}".format(e))
             self.do_restart()
 
 
+    def timer_thread(self, q, chan, debug=False):
+        """thread loop runs forever updating status"""
+        channel = chan['id']
+        self.running = True
+        self.message = 'Calculating...'
+
+        while True:
+            try:
+                status = 'Unknown'
+                online = 'Unknown'
+                kills = 'Unknown'
+                ready = False
+
+                _url = 'wss://zkillboard.com:2096'
+                _msg = '{"action":"sbu","channel":"public"}'
+                wss = websocket.create_connection(_url)
+                print('Timer Thread Connected to: {}'.format(_url))
+                wss.send(_msg)
+                print('Timer Thread Subscribed with: {}'.format(_msg))
+
+                while self.running:
+                    time.sleep(0.1)
+                    raw = wss()
+                    d = eval(raw)
+                    if 'tqStatus' in d:
+                        status = d['tqStatus']
+                        online = d['tqCount']
+                        kills = d['kills']
+                        ready = True
+
+                    if ready:
+                        event = threading.Event()
+                        self.message = '#SECRET_STATUP____{} {} {} Kills'.format(online, status, kills)
+                        q.put_nowait([event, self.message, channel])
+                        event.wait()
+
+                        wss.close()
+                        raise ZeroDivisionError
+
+                    else:
+                        print("Collecting data {} {} {}".format(status, online, kills))
+            except Exception as e:
+                print("SLEEPING AFTER TIMER_THREAD {}".format(e))
+                time.sleep(600)
+
+
     def do_restart(self):
         try:
             self.running = False
             import os,sys
-            os.execv(__file__, sys.argv)
             sys.exit(0)
+            os.execv(__file__, sys.argv)
         except Exception as e:
             print("Failing to restart")
-            time.sleep(300)
+            time.sleep(15)
 
 if __name__ == '__main__':
 
@@ -975,7 +1254,9 @@ if __name__ == '__main__':
     bot = Zbot()
     try:
         bot.start()
+        bot.start_timer()
         bot.run()
     except Exception as e:
+        print("FATAILITY IN MAIN: {}".format(e))
         bot.do_restart()
 
