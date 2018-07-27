@@ -16,4 +16,5 @@ Discord bot for Eve
 * Pause and resume auto posting.
 * Join voice channels and play sound effect files on kill and loss mails.
 * Volume control, set percentage volume, and on/off.
+* Plot flat 2D maps of regions in PyQt, will use for route speed and fleet member distance estimations
 * Fetch cryptocurrency price/volume/change for bitcoin, iota, etcetera... because why not?
