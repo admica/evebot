@@ -9,7 +9,11 @@ Discord bot for Eve
 * Show running total of all killmails seen since login and since last query.
 * Show most active systems filtered by sec status, sorted by ships, pods, or npc kills.
 * Show stats for any single system including kills for that system and all surrounding.
-* Fetch dotlan maps by region.
-* Pause and resume auto posting.
+* Route planning, by security status, highsec, low/null, or shortest.
+* Fetch dotlan maps by region name.
+* All system and region naming input can be partial matches. 'hey' is explicit enough to find 'Heydieles'
 * AI chatbot with high grade snakes. Add multiple channels to his training list to make him smarter faster.
+* Pause and resume auto posting.
+* Join voice channels and play sound effect files on kill and loss mails.
+* Volume control, set percentage volume, and on/off.
 * Fetch cryptocurrency price/volume/change for bitcoin, iota, etcetera... because why not?
