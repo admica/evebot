@@ -11,6 +11,7 @@ Discord bot for Eve
 * Show stats for any single system including kills for that system and all surrounding.
 * Lookup recent pvp activity on any player including time since last kills, most likely ship type, etc.
 * Route planning, by security status, highsec, low/null, or shortest.
+* Price check on any item by name, partial matches ok too. Shows top 3 buy and sell orders.
 * Fetch dotlan maps by region name.
 * All system and region naming input can be partial matches. 'hey' is explicit enough to find 'Heydieles'
 * AI chatbot with high grade snakes. Add multiple channels to his training list to make him smarter faster.
