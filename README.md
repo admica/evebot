@@ -6,7 +6,6 @@ Discord bot for Eve
 ## Features:
 * Autonomously posts killmails to any channel in real time.
 * Save/Load EFT style ship fittings grouped by ship type.
-* 
 * Show running total of all killmails seen since login and since last query.
 * Join voice channels and play sound effect files on kill and loss mails.
 * Show most active systems filtered by sec status, sorted by ships, pods, or npc kills.
