@@ -4,7 +4,7 @@ Discord bot for Eve
 ![logo](https://github.com/admica/evebot/blob/master/images/logo.jpg)
 
 ## Features:
-* Autonomously posts killmails to any channel in real time.
+* Autonomously posts killmails including kill distance from celestials to channels in real time.
 * Save/Load EFT style ship fittings grouped by ship type.
 * Show running total of all killmails seen since login and since last query.
 * Join voice channels and play sound effect files on kill and loss mails.
@@ -19,3 +19,13 @@ Discord bot for Eve
 * Pause and resume auto posting, volume control, on/off, percentage, and other misc tweaks.
 * Plot 2D region maps for for route speed and real-time fleet member time/distance estimations.
 * Fetch cryptocurrency price/volume/change for bitcoin, iota, etcetera... because why not?
+
+![screenshot-kill-feed](https://github.com/admica/evebot/blob/master/images/screenshot-kill-feed.png?raw=true "Route Planning")
+![screenshot-pirates-little-helper](https://github.com/admica/evebot/blob/master/images/screenshot-pirates-little-helper.png?raw=true "Route Planning")
+![screenshot-top-active](https://github.com/admica/evebot/blob/master/images/screenshot-top-active.png?raw=true "Route Planning")
+![screenshot-pricecheck](https://github.com/admica/evebot/blob/master/images/screenshot-pricecheck.png?raw=true "Route Planning")
+![screenshot-fittings-prices](https://github.com/admica/evebot/blob/master/images/screenshot-fittings-prices.png?raw=true "Route Planning")
+![screenshot-system](https://github.com/admica/evebot/blob/master/images/screenshot-system.png?raw=true "Route Planning")
+![screenshot-routes](https://github.com/admica/evebot/blob/master/images/screenshot-routes.png?raw=true "Route Planning")
+![screenshot-help](https://github.com/admica/evebot/blob/master/images/screenshot-help.png?raw=true "Route Planning")
+
