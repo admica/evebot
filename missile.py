@@ -43,8 +43,21 @@ s['typhoon']['b_low'] =  [ 'Precision Heavy Missile', 538, 88.1, 154.0, 44.8, 'B
 s['typhoon']['b_medium'] = [ 'Heavy Missile', 617, 98.7, 129.0, 89.6, 'BCS+MGE' ]
 s['typhoon']['b_high'] =  [ 'Fury Heavy Missile', 723, 170.0, 108.0, 67.2, 'BCS+MGE' ]
 
+s['loki'] = {}
+s['loki']['name'] = 'Loki'
+s['loki']['low'] = 190.0
+s['loki']['big'] = 1010.0
+s['loki']['slow'] = 332.0
+s['loki']['fast'] = 2032.0
+s['loki']['a_low']    = [ 'Javelin Heavy Assault Missile', 492.0, 93.8, 189.0, 45.6, '3xBCS' ]
+s['loki']['a_medium'] = [ 'Heavy Assault Missile',         629.0, 93.8, 189.0, 30.4, '3xBCS' ]
+s['loki']['a_high']   = [ 'Rage Heavy Assault Missile',    738.0, 161.0, 163.0, 25.2, '3xBCS' ]
+s['loki']['b_low']    = [ 'Javelin Heavy Assault Missile', 432.0, 88.1, 201.0, 50.8, '2xBCS+MGE' ]
+s['loki']['b_medium'] = [ 'Heavy Assault Missile',         551.0, 88.1, 201.0, 33.9, '2xBCS+MGE' ]
+s['loki']['b_high']   = [ 'Rage Heavy Assault Missile',    647.0, 152.0, 173.0, 28.1, '2xBCS+MGE' ]
+
 # EFT fits used for above
-s['orthrus']['eft'] = '''[Orthrus, Trya Tadaruwa's Orthrus]
+s['orthrus']['eft'] = '''[Orthrus, standard]
 Ballistic Control System II
 Ballistic Control System II
 Damage Control II
@@ -70,9 +83,9 @@ Medium Hydraulic Bay Thrusters II
 Acolyte II x3
 Acolyte II x2'''
 
-s['typhoon']['eft'] = '''[Typhoon, typhoon]
+s['typhoon']['eft'] = '''[Typhoon, nanofoon]
 Ballistic Control System II
-Missile Guidance Enhancer II
+Ballistic Control System II
 Damage Control II
 Energized Adaptive Nano Membrane II
 Nanofiber Internal Structure II
@@ -101,7 +114,7 @@ Federation Navy Hammerhead x5
 Hobgoblin II x5
 Warrior II x5'''
 
-s['malediction']['eft'] = '''[Malediction, Malediction fit]
+s['malediction']['eft'] = '''[Malediction, light]
 
 Damage Control II
 Small Ancillary Armor Repairer
@@ -118,6 +131,40 @@ Light Missile Launcher II, Scourge Fury Light Missile
 
 Small Polycarbon Engine Housing II
 Small Ionic Field Projector II'''
+
+s['loki']['eft'] = '''[Loki, ham]
+
+Nanofiber Internal Structure II
+Caldari Navy Ballistic Control System
+Caldari Navy Ballistic Control System
+Caldari Navy Ballistic Control System
+
+X-Large Ancillary Shield Booster, Navy Cap Booster 800
+Caldari Navy Large Shield Extender
+Gistum C-Type 50MN Microwarpdrive
+Dread Guristas Stasis Webifier
+Republic Fleet Warp Disruptor
+
+Heavy Assault Missile Launcher II, Caldari Navy Nova Heavy Assault Missile
+Heavy Assault Missile Launcher II, Caldari Navy Nova Heavy Assault Missile
+Heavy Assault Missile Launcher II, Caldari Navy Nova Heavy Assault Missile
+Heavy Assault Missile Launcher II, Caldari Navy Nova Heavy Assault Missile
+Heavy Assault Missile Launcher II, Caldari Navy Nova Heavy Assault Missile
+Covert Ops Cloaking Device II
+Sisters Expanded Probe Launcher, Sisters Core Scanner Probe
+[Empty High slot]
+
+Medium Ancillary Current Router II
+Medium Polycarbon Engine Housing I
+Medium Rocket Fuel Cache Partition II
+
+Loki Core - Immobility Drivers
+Loki Defensive - Covert Reconfiguration
+Loki Offensive - Launcher Efficiency Configuration
+Loki Propulsion - Intercalated Nanofibers
+
+Hobgoblin II x3
+Hornet EC-300 x5'''
 
 drf = {}
 drf['Auto-Targeting Cruise Missile'] = 0.882
@@ -205,10 +252,15 @@ def calc(attacker, missile_type, victim, ship_speed, slot='a', web=0):
     reduction.append( dmg*(((s/e)*(ve/vt))**f) ) # sig and velocity reduction
     damage = int(min(reduction))
 
-    if web > 0:
-        text = '{} + {} + {} = {} DPS to {} doing {}m/s ({}% web) to {}km'.format(attacker['name'], desc, mtype, damage, victim['name'], int(vt), web, max_range)
+    if mtype.lower().startswith('heavy ass'):
+        m = ''.join(mtype.split(' ')[0:2])
     else:
-        text = '{} + {} + {} = {} DPS to {} doing {}m/s to {}km'.format(attacker['name'], desc, mtype, damage, victim['name'], int(vt), max_range)
+        m = mtype.split(' ')[0]
+
+    if web > 0:
+        text = '{}+{}+{} = {}DPS on {}@{}m/s ({}%web) to {}km'.format(attacker['name'], desc, m, damage, victim['name'], int(vt), web, max_range)
+    else:
+        text = '{}+{}+{} = {}DPS on {}@{}m/s to {}km'.format(attacker['name'], desc, m, damage, victim['name'], int(vt), max_range)
     return ( text, damage, attacker['name'], mtype, victim['name'], ship_speed )
 
 
@@ -247,6 +299,10 @@ data = matrix('malediction', 'typhoon')
 for item in data:
     print(item[0])
 print
+data = matrix('malediction', 'loki')
+for item in data:
+    print(item[0])
+print
 
 data = matrix('orthrus', 'malediction')
 for item in data:
@@ -257,6 +313,10 @@ for item in data:
     print(item[0])
 print
 data = matrix('orthrus', 'typhoon')
+for item in data:
+    print(item[0])
+print
+data = matrix('orthrus', 'loki')
 for item in data:
     print(item[0])
 print
@@ -274,4 +334,29 @@ print
 data = matrix('typhoon', 'typhoon')
 for item in data:
     print(item[0])
+print
+data = matrix('typhoon', 'loki')
+for item in data:
+    print(item[0])
+print
+
+data = matrix('loki', 'malediction')
+for item in data:
+    print(item[0])
+print
+
+data = matrix('loki', 'orthrus')
+for item in data:
+    print(item[0])
+print
+
+data = matrix('loki', 'typhoon')
+for item in data:
+    print(item[0])
+print
+
+data = matrix('loki', 'loki')
+for item in data:
+    print(item[0])
+print
 
